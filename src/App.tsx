@@ -4,36 +4,16 @@ import Dashboard from './components/Dashboard';
 import AuthModal from './components/AuthModal';
 import MediaUpload from './components/MediaUpload';
 import PublishModal from './components/PublishModal';
-import { Platform, MediaFile, PublishStatus } from './types';
+import { MediaFile, PublishStatus } from './types';
+import { useAuth } from './hooks/useAuth';
 
 function App() {
-  const [authenticatedPlatforms, setAuthenticatedPlatforms] = useState<Platform[]>([]);
+  const { authenticatedPlatforms, platforms, isLoading: authLoading, handleAuth, handleLogout } = useAuth();
   const [selectedFile, setSelectedFile] = useState<MediaFile | null>(null);
   const [showAuthModal, setShowAuthModal] = useState(false);
   const [showPublishModal, setShowPublishModal] = useState(false);
   const [publishStatus, setPublishStatus] = useState<PublishStatus | null>(null);
   const [isLoading, setIsLoading] = useState(false);
-
-  const platforms: Platform[] = [
-    { id: 'tiktok', name: 'TikTok', color: '#ff0050', icon: '🎵' },
-    { id: 'youtube', name: 'YouTube', color: '#ff0000', icon: '📺' },
-    { id: 'instagram', name: 'Instagram', color: '#e4405f', icon: '📸' },
-    { id: 'x', name: 'X (Twitter)', color: '#000000', icon: '🐦' }
-  ];
-
-  const handleAuth = (platform: Platform) => {
-    setIsLoading(true);
-    // Simulate OAuth flow
-    setTimeout(() => {
-      setAuthenticatedPlatforms(prev => [...prev, platform]);
-      setIsLoading(false);
-      setShowAuthModal(false);
-    }, 2000);
-  };
-
-  const handleLogout = (platformId: string) => {
-    setAuthenticatedPlatforms(prev => prev.filter(p => p.id !== platformId));
-  };
 
   const handleFileSelect = (file: MediaFile) => {
     setSelectedFile(file);
@@ -53,7 +33,8 @@ function App() {
 
       const response = await fetch('http://localhost:5005/publish', {
         method: 'POST',
-        body: formData
+        body: formData,
+        credentials: 'include' // Include session cookies
       });
 
       if (response.ok) {
@@ -190,7 +171,7 @@ function App() {
           authenticatedPlatforms={authenticatedPlatforms}
           onAuth={handleAuth}
           onClose={() => setShowAuthModal(false)}
-          isLoading={isLoading}
+          isLoading={authLoading}
         />
       )}
 

@@ -75,7 +75,7 @@ const AuthModal: React.FC<AuthModalProps> = ({
                     {isLoading ? (
                       <>
                         <Loader2 className="w-4 h-4 animate-spin" />
-                        <span>Connecting...</span>
+                        <span>Redirecting...</span>
                       </>
                     ) : (
                       <span>Connect</span>

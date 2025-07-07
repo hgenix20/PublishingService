@@ -1,15 +1,48 @@
+require('dotenv').config();
 const express = require('express');
 const multer = require('multer');
 const { v4: uuidv4 } = require('uuid');
 const cors = require('cors');
 const path = require('path');
 const fs = require('fs');
+const session = require('express-session');
+const passport = require('./config/passport');
+
+// Import services
+const YouTubeService = require('./services/youtube');
+const TikTokService = require('./services/tiktok');
+const InstagramService = require('./services/instagram');
+const TwitterService = require('./services/twitter');
+
+// Import routes
+const authRoutes = require('./routes/auth');
 
 const app = express();
 
 // Middleware
-app.use(cors());
+app.use(cors({
+  origin: process.env.FRONTEND_URL || 'http://localhost:3000',
+  credentials: true
+}));
 app.use(express.json());
+
+// Session configuration
+app.use(session({
+  secret: process.env.SESSION_SECRET || 'your-secret-key',
+  resave: false,
+  saveUninitialized: false,
+  cookie: {
+    secure: process.env.NODE_ENV === 'production',
+    maxAge: 24 * 60 * 60 * 1000 // 24 hours
+  }
+}));
+
+// Passport middleware
+app.use(passport.initialize());
+app.use(passport.session());
+
+// Routes
+app.use('/auth', authRoutes);
 
 // Root endpoint
 app.get('/', (req, res) => {
@@ -60,7 +93,7 @@ const upload = multer({
 });
 
 // Publish endpoint
-app.post('/publish', upload.single('video'), (req, res) => {
+app.post('/publish', upload.single('video'), async (req, res) => {
   try {
     const { caption, platforms } = req.body;
     const file = req.file;
@@ -84,7 +117,6 @@ app.post('/publish', upload.single('video'), (req, res) => {
     // Generate unique video ID
     const videoId = uuidv4();
     
-    // Log the publish request
     console.log('📤 Publish Request:', {
       videoId,
       filename: file.originalname,
@@ -94,28 +126,94 @@ app.post('/publish', upload.single('video'), (req, res) => {
       timestamp: new Date().toISOString()
     });
 
-    // TODO: Implement actual platform publishing logic here
-    // For each platform in selectedPlatforms, make API calls to:
-    // - TikTok Business API
-    // - YouTube Data API
-    // - Instagram Graph API  
-    // - X (Twitter) API v2
+    // Get user tokens from session
+    const userTokens = authRoutes.userTokens;
+    const results = {};
 
-    // Simulate processing time
+    // Process each platform
+    for (const platform of selectedPlatforms) {
+      const tokenKey = `${req.sessionID}_${platform}`;
+      const tokenData = userTokens.get(tokenKey);
+
+      if (!tokenData) {
+        results[platform] = {
+          success: false,
+          error: `Not authenticated with ${platform}`,
+          platform
+        };
+        continue;
+      }
+
+      try {
+        let result;
+        
+        switch (platform) {
+          case 'youtube':
+            const youtubeService = new YouTubeService(
+              tokenData.accessToken,
+              tokenData.refreshToken
+            );
+            result = await youtubeService.uploadVideo(
+              file.path,
+              caption || 'Uploaded via Social Publisher',
+              caption || 'Uploaded via Social Publisher'
+            );
+            break;
+
+          case 'tiktok':
+            const tiktokService = new TikTokService(tokenData.accessToken);
+            result = await tiktokService.uploadVideo(file.path, caption || '');
+            break;
+
+          case 'instagram':
+            const instagramService = new InstagramService(tokenData.accessToken);
+            if (file.mimetype.startsWith('video/')) {
+              result = await instagramService.uploadVideo(file.path, caption || '');
+            } else {
+              result = await instagramService.uploadImage(file.path, caption || '');
+            }
+            break;
+
+          case 'x':
+            const twitterService = new TwitterService(
+              tokenData.accessToken,
+              tokenData.tokenSecret
+            );
+            result = await twitterService.uploadVideo(file.path, caption || '');
+            break;
+
+          default:
+            result = {
+              success: false,
+              error: `Unsupported platform: ${platform}`,
+              platform
+            };
+        }
+
+        results[platform] = result;
+      } catch (error) {
+        console.error(`Error publishing to ${platform}:`, error);
+        results[platform] = {
+          success: false,
+          error: error.message,
+          platform
+        };
+      }
+    }
+
+    // Clean up uploaded file after processing
     setTimeout(() => {
-      console.log(`✅ Successfully processed upload ${videoId}`);
-      
-      // Clean up uploaded file after processing (optional)
-      // fs.unlinkSync(file.path);
-      
-    }, 1000);
+      if (fs.existsSync(file.path)) {
+        fs.unlinkSync(file.path);
+      }
+    }, 5000);
 
-    // Return success response
+    // Return results
     res.json({ 
       videoId,
-      status: 'success',
-      message: 'Content published successfully',
-      platforms: selectedPlatforms,
+      status: 'completed',
+      message: 'Publishing completed',
+      platforms: results,
       uploadedFile: {
         originalName: file.originalname,
         size: file.size,
@@ -136,9 +234,7 @@ app.post('/publish', upload.single('video'), (req, res) => {
 app.get('/status/:videoId', (req, res) => {
   const { videoId } = req.params;
   
-  // TODO: Implement actual status checking logic
-  // This would check the status of uploads to each platform
-  
+  // In a real implementation, you'd check the actual status from a database
   res.json({
     videoId,
     status: 'completed',
@@ -165,4 +261,5 @@ const PORT = process.env.PORT || 5005;
 app.listen(PORT, () => {
   console.log(`🚀 Publish service running on port ${PORT}`);
   console.log(`📍 Health check: http://localhost:${PORT}/health`);
+  console.log(`🔐 OAuth endpoints: http://localhost:${PORT}/auth/{platform}`);
 });
