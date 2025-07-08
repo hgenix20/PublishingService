@@ -161,8 +161,24 @@ app.post('/publish', upload.single('video'), async (req, res) => {
             break;
 
           case 'tiktok':
-            const tiktokService = new TikTokService(tokenData.accessToken);
+            const tiktokService = new TikTokService(
+              tokenData.accessToken,
+              tokenData.refreshToken,
+              tokenData.expiresIn,
+              tokenData.tokenIssuedAt
+            );
             result = await tiktokService.uploadVideo(file.path, caption || '');
+            
+            // Update tokens if they were refreshed
+            if (tiktokService.accessToken !== tokenData.accessToken) {
+              userTokens.set(tokenKey, {
+                ...tokenData,
+                accessToken: tiktokService.accessToken,
+                refreshToken: tiktokService.refreshToken,
+                expiresIn: tiktokService.expiresIn,
+                tokenIssuedAt: tiktokService.tokenIssuedAt
+              });
+            }
             break;
 
           case 'instagram':

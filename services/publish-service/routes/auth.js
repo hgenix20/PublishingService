@@ -54,6 +54,8 @@ router.get('/tiktok/callback',
     userTokens.set(`${req.sessionID}_tiktok`, {
       accessToken: req.user.accessToken,
       refreshToken: req.user.refreshToken,
+      expiresIn: req.user.expiresIn,
+      tokenIssuedAt: req.user.tokenIssuedAt,
       platform: 'tiktok',
       user: req.user
     });

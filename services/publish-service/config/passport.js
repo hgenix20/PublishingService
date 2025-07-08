@@ -54,18 +54,23 @@ passport.use('twitter', new TwitterStrategy({
 
 // TikTok OAuth Strategy (Custom OAuth2)
 passport.use('tiktok', new OAuth2Strategy({
-  authorizationURL: 'https://www.tiktok.com/auth/authorize/',
-  tokenURL: 'https://open-api.tiktok.com/oauth/access_token/',
+  authorizationURL: 'https://www.tiktok.com/v2/auth/authorize/',
+  tokenURL: 'https://open.tiktokapis.com/v2/oauth/token/',
   clientID: process.env.TIKTOK_CLIENT_ID,
   clientSecret: process.env.TIKTOK_CLIENT_SECRET,
   callbackURL: '/auth/tiktok/callback',
-  scope: 'user.info.basic,video.upload'
+  scope: 'user.info.basic,video.upload',
+  customHeaders: {
+    'Content-Type': 'application/x-www-form-urlencoded'
+  }
 }, async (accessToken, refreshToken, profile, done) => {
   const user = {
     platform: 'tiktok',
-    id: profile.id,
+    id: profile.open_id || profile.id,
     accessToken,
     refreshToken,
+    expiresIn: profile.expires_in || 86400, // 24 hours default
+    tokenIssuedAt: Date.now(),
     profile
   };
   return done(null, user);
