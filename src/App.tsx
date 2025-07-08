@@ -31,7 +31,7 @@ function App() {
       formData.append('caption', caption);
       formData.append('platforms', JSON.stringify(selectedPlatforms));
 
-      const response = await fetch('http://localhost:5005/publish', {
+      const response = await fetch(`${import.meta.env.VITE_API_URL}/publish`, {
         method: 'POST',
         body: formData,
         credentials: 'include' // Include session cookies

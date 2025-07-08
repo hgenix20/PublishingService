@@ -39,7 +39,7 @@ export const useAuth = () => {
 
   const checkAuthStatus = async () => {
     try {
-      const response = await fetch('http://localhost:5005/auth/status', {
+      const response = await fetch(`${import.meta.env.VITE_API_URL}/auth/status`, {
         credentials: 'include'
       });
       
@@ -59,12 +59,12 @@ export const useAuth = () => {
   const handleAuth = (platform: Platform) => {
     setIsLoading(true);
     // Redirect to OAuth endpoint
-    window.location.href = `http://localhost:5005/auth/${platform.id}`;
+    window.location.href = `${import.meta.env.VITE_API_URL}/auth/${platform.id}`;
   };
 
   const handleLogout = async (platformId: string) => {
     try {
-      const response = await fetch(`http://localhost:5005/auth/logout/${platformId}`, {
+      const response = await fetch(`${import.meta.env.VITE_API_URL}/auth/logout/${platformId}`, {
         method: 'POST',
         credentials: 'include'
       });
