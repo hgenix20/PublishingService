@@ -6,6 +6,7 @@ export default defineConfig({
   plugins: [react()],
   server: {
     https: false,
+    port: 5173,
     host: true
   },
   optimizeDeps: {
